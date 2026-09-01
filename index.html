@@ -1,77 +1,854 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Class Calendar & News Dashboard</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; }
-    .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .admin-controls { background: #eef2f5; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
-    .news-section { background: #fff8e1; padding: 15px; border-left: 5px solid #ffb300; margin-bottom: 20px; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 10px; }
-    .day-box { border: 1fr solid #ccc; background: #fafafa; padding: 10px; min-height: 80px; border-radius: 4px; }
-    .day-header { font-weight: bold; margin-bottom: 5px; color: #333; }
-    .hidden { display: none; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Homework + News Calendar</title>
+<style>
+:root{
+--bg:#0b1020;
+--panel:#121a33;
+--panel2:#0f1730;
+--text:#e8ecff;
+--muted:#a8b2e6;
+--border:rgba(255,255,255,.10);
+--accent:#6ea8fe;
+--accent2:#7cf6c8;
+--danger:#ff6b6b;
+--shadow: 0 10px 30px rgba(0,0,0,.35);
+--radius:14px;
+}
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+background: radial-gradient(1200px 800px at 20% 10%, #1b2a66 0%, var(--bg) 60%);
+color:var(--text);
+display:flex;
+justify-content:center;
+padding:18px;
+}
+.app{
+width: min(1100px, 100%);
+display:grid;
+gap:14px;
+grid-template-columns: 1fr;
+}
+header{
+background: linear-gradient(135deg, rgba(110,168,254,.22), rgba(124,246,200,.18));
+border:1px solid var(--border);
+border-radius: var(--radius);
+box-shadow: var(--shadow);
+padding:14px 16px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
+}
+header h1{
+font-size: 16px;
+margin:0;
+letter-spacing:.2px;
+}
+header .meta{
+color:var(--muted);
+font-size: 12px;
+text-align:right;
+}
+
+.layout{
+display:grid;
+gap:14px;
+grid-template-columns: 1.05fr .95fr;
+align-items:start;
+}
+@media (max-width: 900px){
+.layout{ grid-template-columns: 1fr; }
+}
+
+.card{
+background: rgba(18,26,51,.75);
+border:1px solid var(--border);
+border-radius: var(--radius);
+box-shadow: var(--shadow);
+overflow:hidden;
+}
+.card .hd{
+padding:12px 14px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+border-bottom:1px solid var(--border);
+background: rgba(15,23,48,.65);
+}
+.card .hd .title{
+font-weight:700;
+font-size:14px;
+}
+.controls{
+display:flex;
+gap:8px;
+align-items:center;
+flex-wrap:wrap;
+justify-content:flex-end;
+}
+
+button{
+appearance:none;
+border:1px solid var(--border);
+background: rgba(255,255,255,.06);
+color:var(--text);
+padding:8px 10px;
+border-radius:10px;
+cursor:pointer;
+font-weight:650;
+font-size:13px;
+transition: transform .05s ease, background .15s ease, border-color .15s ease;
+user-select:none;
+}
+button:hover{ background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.18); }
+button:active{ transform: translateY(1px); }
+
+.btn-accent{
+background: rgba(110,168,254,.15);
+border-color: rgba(110,168,254,.35);
+}
+.btn-accent:hover{ background: rgba(110,168,254,.22); }
+.btn-danger{
+background: rgba(255,107,107,.12);
+border-color: rgba(255,107,107,.30);
+}
+.btn-danger:hover{ background: rgba(255,107,107,.18); }
+
+.calendar-wrap{ padding:12px 14px 14px; }
+.month-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+margin-bottom:10px;
+flex-wrap:wrap;
+}
+.month-title{
+font-weight:800;
+font-size:16px;
+letter-spacing:.2px;
+}
+
+.dow{
+display:grid;
+grid-template-columns: repeat(7, 1fr);
+gap:8px;
+padding:0 2px 8px;
+color:var(--muted);
+font-size:12px;
+font-weight:700;
+text-transform:uppercase;
+letter-spacing:.08em;
+}
+.grid{
+display:grid;
+grid-template-columns: repeat(7, 1fr);
+gap:8px;
+}
+
+.day{
+min-height:58px;
+padding:8px 8px 7px;
+border-radius:12px;
+border:1px solid var(--border);
+background: rgba(255,255,255,.04);
+cursor:pointer;
+position:relative;
+overflow:hidden;
+transition: background .15s ease, border-color .15s ease, transform .05s ease;
+}
+.day:hover{
+background: rgba(255,255,255,.07);
+border-color: rgba(255,255,255,.18);
+transform: translateY(-1px);
+}
+.day.muted{
+opacity:.45;
+}
+.day.selected{
+border-color: rgba(110,168,254,.65);
+background: rgba(110,168,254,.14);
+box-shadow: 0 0 0 2px rgba(110,168,254,.18) inset;
+}
+.day .num{
+font-weight:850;
+font-size:14px;
+}
+.pills{
+margin-top:8px;
+display:flex;
+flex-wrap:wrap;
+gap:6px;
+}
+.pill{
+height:18px;
+padding:0 8px;
+border-radius:999px;
+border:1px solid var(--border);
+display:flex;
+align-items:center;
+font-size:11px;
+font-weight:800;
+letter-spacing:.02em;
+color:var(--muted);
+background: rgba(255,255,255,.04);
+white-space:nowrap;
+}
+.pill.home{ color:#bfe5ff; border-color: rgba(110,168,254,.35); background: rgba(110,168,254,.10); }
+.pill.news{ color:#bffde7; border-color: rgba(124,246,200,.35); background: rgba(124,246,200,.10); }
+
+.content{
+padding:12px 14px 14px;
+}
+.section{
+border:1px solid var(--border);
+border-radius: var(--radius);
+background: rgba(15,23,48,.45);
+padding:12px;
+margin-bottom:12px;
+}
+.section:last-child{ margin-bottom:0; }
+.section h2{
+margin:0 0 10px;
+font-size:14px;
+letter-spacing:.2px;
+}
+.section h2 .badge{
+margin-left:8px;
+font-size:12px;
+font-weight:900;
+padding:3px 8px;
+border-radius:999px;
+border:1px solid var(--border);
+color:var(--muted);
+background: rgba(255,255,255,.04);
+}
+
+.date-box{
+display:flex;
+justify-content:space-between;
+align-items:flex-end;
+gap:10px;
+margin-bottom:10px;
+}
+.date-box .left{
+display:flex;
+flex-direction:column;
+gap:4px;
+}
+.selected-date{
+font-weight:900;
+font-size:16px;
+letter-spacing:.2px;
+}
+.selected-sub{
+color:var(--muted);
+font-size:12px;
+}
+
+.form-row{
+display:grid;
+grid-template-columns: 1fr auto;
+gap:8px;
+align-items:center;
+margin:10px 0 6px;
+}
+.form-row textarea, .form-row input{
+width:100%;
+background: rgba(255,255,255,.05);
+border:1px solid var(--border);
+border-radius:12px;
+color:var(--text);
+padding:10px 10px;
+outline:none;
+font-size:14px;
+}
+.form-row textarea{ min-height:44px; resize:vertical; }
+.form-row .smallhint{
+grid-column: 1 / -1;
+color:var(--muted);
+font-size:12px;
+margin-top:2px;
+}
+
+.list{
+margin-top:10px;
+display:flex;
+flex-direction:column;
+gap:8px;
+}
+.item{
+border:1px solid var(--border);
+background: rgba(255,255,255,.04);
+border-radius:12px;
+padding:10px 10px;
+display:flex;
+justify-content:space-between;
+gap:10px;
+align-items:flex-start;
+}
+.item .text{
+flex:1;
+white-space:pre-wrap;
+word-break:break-word;
+line-height:1.25;
+font-size:14px;
+font-weight:600;
+}
+.item .right{
+display:flex;
+align-items:center;
+gap:8px;
+}
+.tag{
+font-size:11px;
+font-weight:900;
+color:var(--muted);
+border:1px solid var(--border);
+background: rgba(255,255,255,.03);
+padding:3px 7px;
+border-radius:999px;
+white-space:nowrap;
+}
+.empty{
+color:var(--muted);
+font-size:13px;
+padding:10px 2px 2px;
+}
+
+.footer-actions{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+align-items:center;
+justify-content:space-between;
+margin-top:10px;
+}
+.kbd{
+font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+font-size: 12px;
+padding: 3px 7px;
+border-radius: 10px;
+border:1px solid var(--border);
+background: rgba(255,255,255,.04);
+color: var(--muted);
+}
+</style>
 </head>
 <body>
+<div class="app">
+<header>
+<h1>Daily Homework + News Calendar</h1>
+<div class="meta">
+Click a day → add items → they save locally
+<div style="margin-top:4px;">Tip: press <span class="kbd">Enter</span> to add (in the input)</div>
+</div>
+</header>
 
-<div class="container">
-  <h2>Class Announcements & Homework</h2>
-  
-  <div class="news-section">
-    <h3>Latest News</h3>
-    <p id="news-display">No new announcements today.</p>
-  </div>
+<div class="layout">
+<!-- LEFT: MONTH VIEW -->
+<section class="card">
+<div class="hd">
+<div class="title">Calendar</div>
+<div class="controls">
+<button id="prevBtn" aria-label="Previous month">◀</button>
+<button id="todayBtn" class="btn-accent" aria-label="Go to today">Today</button>
+<button id="nextBtn" aria-label="Next month">▶</button>
+</div>
+</div>
 
-  <h3>Weekly Calendar</h3>
-  <div class="calendar-grid" id="calendar">
-    </div>
+<div class="calendar-wrap">
+<div class="month-row">
+<div class="month-title" id="monthTitle">Month</div>
+<div class="selected-sub" id="rangeHint">—</div>
+</div>
 
-  <hr style="margin: 30px 0;">
+<div class="dow">
+<div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+</div>
 
-  <div class="admin-controls">
-    <button onclick="unlockAdmin()">Admin Login</button>
-    
-    <div id="admin-panel" class="hidden" style="margin-top: 15px;">
-      <h4>Update Announcements</h4>
-      <input type="text" id="news-input" placeholder="Enter news..." style="width: 70%;">
-      <button onclick="updateNews()">Publish News</button>
-    </div>
-  </div>
+<div class="grid" id="daysGrid"></div>
+</div>
+</section>
+
+<!-- RIGHT: DAILY CONTENT -->
+<aside class="card">
+<div class="hd">
+<div class="title">For selected day</div>
+<div class="controls">
+<button id="clearDayBtn" class="btn-danger" title="Remove all homework & news for this day">
+Clear day
+</button>
+</div>
+</div>
+
+<div class="content">
+<div class="date-box">
+<div class="left">
+<div class="selected-date" id="selectedDateLabel">—</div>
+<div class="selected-sub" id="selectedDateISO">—</div>
+</div>
+<div class="selected-sub" id="todayBadge"></div>
+</div>
+
+<div class="section">
+<h2>
+Homework
+<span class="badge" id="homeCountBadge">0 items</span>
+</h2>
+
+<div class="form-row">
+<textarea id="homeInput" placeholder="Add homework (e.g., Math worksheet #3)" maxlength="500"></textarea>
+<button id="addHomeBtn" class="btn-accent">Add</button>
+<div class="smallhint">Each line you enter becomes one homework item.</div>
+</div>
+
+<div class="list" id="homeList"></div>
+<div class="empty" id="homeEmpty">No homework for this day yet.</div>
+</div>
+
+<div class="section">
+<h2>
+News
+<span class="badge" id="newsCountBadge">0 items</span>
+</h2>
+
+<div class="form-row">
+<textarea id="newsInput" placeholder="Add news (e.g., Team meeting moved to 4pm)" maxlength="500"></textarea>
+<button id="addNewsBtn" class="btn-accent">Add</button>
+<div class="smallhint">Useful for class announcements or anything time-sensitive.</div>
+</div>
+
+<div class="list" id="newsList"></div>
+<div class="empty" id="newsEmpty">No news for this day yet.</div>
+</div>
+
+<div class="footer-actions">
+<div class="selected-sub">
+Storage: <span class="kbd">Local browser only</span>
+</div>
+<button id="exportBtn" title="Export your calendar data as a JSON file">Export JSON</button>
+<button id="importBtn" title="Import calendar data from a JSON file">Import JSON</button>
+<input id="importFile" type="file" accept="application/json" style="display:none" />
+</div>
+</div>
+</aside>
+</div>
 </div>
 
 <script>
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const calendarEl = document.getElementById('calendar');
+// ===== Storage model =====
+// Data shape:
+// {
+// "YYYY-MM-DD": { homework: [{id, text, ts}], news: [{id, text, ts}] }
+// }
+const STORAGE_KEY = "daily_calendar_homework_news_v1";
 
-  // Render basic calendar structure
-  days.forEach(day => {
-    const box = document.createElement('div');
-    box.className = 'day-box';
-    box.innerHTML = `<div class="day-header">${day}</div><div id="task-${day}">No tasks</div>`;
-    calendarEl.appendChild(box);
-  });
+function loadData(){
+try{
+const raw = localStorage.getItem(STORAGE_KEY);
+if(!raw) return {};
+const parsed = JSON.parse(raw);
+if(!parsed || typeof parsed !== "object") return {};
+return parsed;
+}catch(e){
+return {};
+}
+}
 
-  function unlockAdmin() {
-    const password = prompt("Enter Admin Password:");
-    if (password === "admin123") { // Replace with desired passcode logic
-      document.getElementById('admin-panel').classList.remove('hidden');
-      alert("Admin access granted.");
-    } else {
-      alert("Incorrect password.");
-    }
-  }
+function saveData(data){
+localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
-  function updateNews() {
-    const text = document.getElementById('news-input').value;
-    if (text) {
-      document.getElementById('news-display').innerText = text;
-      alert("News updated on page!");
-    }
-  }
+let data = loadData();
+
+// ===== Date helpers =====
+function pad2(n){ return String(n).padStart(2,"0"); }
+function toISODate(d){
+// local time (avoid TZ shift by using local date components)
+return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+function sameDay(a, b){
+return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+function startOfMonth(d){
+return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function endOfMonth(d){
+return new Date(d.getFullYear(), d.getMonth()+1, 0);
+}
+function addDays(d, n){
+const x = new Date(d);
+x.setDate(x.getDate() + n);
+return x;
+}
+
+// ===== UI elements =====
+const monthTitle = document.getElementById("monthTitle");
+const daysGrid = document.getElementById("daysGrid");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const todayBtn = document.getElementById("todayBtn");
+
+const selectedDateLabel = document.getElementById("selectedDateLabel");
+const selectedDateISO = document.getElementById("selectedDateISO");
+const todayBadge = document.getElementById("todayBadge");
+
+const homeCountBadge = document.getElementById("homeCountBadge");
+const newsCountBadge = document.getElementById("newsCountBadge");
+const homeList = document.getElementById("homeList");
+const newsList = document.getElementById("newsList");
+const homeEmpty = document.getElementById("homeEmpty");
+const newsEmpty = document.getElementById("newsEmpty");
+
+const homeInput = document.getElementById("homeInput");
+const newsInput = document.getElementById("newsInput");
+const addHomeBtn = document.getElementById("addHomeBtn");
+const addNewsBtn = document.getElementById("addNewsBtn");
+const clearDayBtn = document.getElementById("clearDayBtn");
+
+const rangeHint = document.getElementById("rangeHint");
+
+// Export/Import
+const exportBtn = document.getElementById("exportBtn");
+const importBtn = document.getElementById("importBtn");
+const importFile = document.getElementById("importFile");
+
+// ===== State =====
+let viewMonth = new Date(); // which month is displayed
+let selectedDate = new Date(); // which day is active
+
+// ===== Rendering =====
+function getDayRecord(iso){
+if(!data[iso]){
+data[iso] = { homework: [], news: [] };
+}else{
+if(!Array.isArray(data[iso].homework)) data[iso].homework = [];
+if(!Array.isArray(data[iso].news)) data[iso].news = [];
+}
+return data[iso];
+}
+
+function formatLong(d){
+return d.toLocaleDateString(undefined, { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+}
+
+function renderMonth(){
+const sm = startOfMonth(viewMonth);
+const em = endOfMonth(viewMonth);
+
+monthTitle.textContent = viewMonth.toLocaleDateString(undefined, { month:"long", year:"numeric" });
+
+// Range hint
+const gridStart = addDays(sm, -sm.getDay()); // Sunday on/before first
+const gridEnd = addDays(em, (6 - em.getDay())); // Saturday on/after last
+rangeHint.textContent = `Showing ${gridStart.toLocaleDateString()} – ${gridEnd.toLocaleDateString()}`;
+
+daysGrid.innerHTML = "";
+
+const totalCells = 42; // 6 weeks
+for(let i=0;i<totalCells;i++){
+const cellDate = addDays(gridStart, i);
+const iso = toISODate(cellDate);
+const record = data[iso] || { homework: [], news: [] };
+const homeCount = (record.homework || []).length;
+const newsCount = (record.news || []).length;
+
+const cell = document.createElement("div");
+cell.className = "day";
+const inMonth = cellDate.getMonth() === viewMonth.getMonth();
+if(!inMonth) cell.classList.add("muted");
+if(sameDay(cellDate, selectedDate)) cell.classList.add("selected");
+
+cell.setAttribute("role","button");
+cell.setAttribute("tabindex","0");
+cell.setAttribute("aria-label", `Select ${formatLong(cellDate)}`);
+
+const num = document.createElement("div");
+num.className = "num";
+num.textContent = cellDate.getDate();
+
+const pills = document.createElement("div");
+pills.className = "pills";
+
+// Show up to 2 pills (Homework / News). If more items exist,
+// we still show one pill; you can keep counts via badge if desired.
+if(homeCount > 0){
+const p = document.createElement("div");
+p.className = "pill home";
+p.textContent = `HW ${homeCount}`;
+pills.appendChild(p);
+}
+if(newsCount > 0){
+const p = document.createElement("div");
+p.className = "pill news";
+p.textContent = `News ${newsCount}`;
+pills.appendChild(p);
+}
+
+cell.appendChild(num);
+if(pills.children.length) cell.appendChild(pills);
+
+cell.addEventListener("click", () => {
+selectedDate = cellDate;
+updateSelectedPanel();
+renderMonth();
+});
+
+// Keyboard accessibility
+cell.addEventListener("keydown", (e)=>{
+if(e.key === "Enter" || e.key === " "){
+e.preventDefault();
+selectedDate = cellDate;
+updateSelectedPanel();
+renderMonth();
+}
+});
+
+daysGrid.appendChild(cell);
+}
+}
+
+function renderList(listEl, items, badgeSetter){
+listEl.innerHTML = "";
+if(items.length === 0){
+return false;
+}
+
+for(const item of items){
+const row = document.createElement("div");
+row.className = "item";
+
+const text = document.createElement("div");
+text.className = "text";
+text.textContent = item.text;
+
+const right = document.createElement("div");
+right.className = "right";
+
+const tag = document.createElement("div");
+tag.className = "tag";
+tag.textContent = new Date(item.ts).toLocaleTimeString(undefined, { hour:"2-digit", minute:"2-digit" });
+
+const del = document.createElement("button");
+del.className = "btn-danger";
+del.textContent = "Delete";
+del.style.padding = "7px 9px";
+del.addEventListener("click", ()=>{
+const iso = toISODate(selectedDate);
+const rec = getDayRecord(iso);
+
+if(badgeSetter === "home"){
+rec.homework = rec.homework.filter(x => x.id !== item.id);
+}else{
+rec.news = rec.news.filter(x => x.id !== item.id);
+}
+saveData(data);
+updateSelectedPanel();
+renderMonth();
+});
+
+right.appendChild(tag);
+right.appendChild(del);
+
+row.appendChild(text);
+row.appendChild(right);
+
+listEl.appendChild(row);
+}
+
+return true;
+}
+
+function updateSelectedPanel(){
+const iso = toISODate(selectedDate);
+const rec = getDayRecord(iso);
+
+selectedDateLabel.textContent = formatLong(selectedDate);
+selectedDateISO.textContent = `ISO: ${iso}`;
+
+const now = new Date();
+todayBadge.textContent = sameDay(selectedDate, now) ? "✅ Today" : "";
+
+// Homework
+homeCountBadge.textContent = `${rec.homework.length} item${rec.homework.length===1?"":"s"}`;
+const hasHome = renderList(homeList, rec.homework, "home");
+homeEmpty.style.display = hasHome ? "none" : "block";
+
+// News
+newsCountBadge.textContent = `${rec.news.length} item${rec.news.length===1?"":"s"}`;
+const hasNews = renderList(newsList, rec.news, "news");
+newsEmpty.style.display = hasNews ? "none" : "block";
+}
+
+// ===== Add items =====
+function splitToItems(text){
+// Each line becomes an item; ignore empty lines
+const lines = text
+.split(/\r?\n/)
+.map(s => s.trim())
+.filter(Boolean);
+// If user typed with no newlines, it remains one item.
+return lines.length ? lines : [];
+}
+
+function uid(){
+return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+}
+
+function addHomework(){
+const raw = homeInput.value.trim();
+if(!raw) return;
+
+const items = splitToItems(raw);
+if(items.length === 0) return;
+
+const iso = toISODate(selectedDate);
+const rec = getDayRecord(iso);
+
+const ts = Date.now();
+for(const text of items){
+rec.homework.push({ id: uid(), text, ts });
+}
+
+homeInput.value = "";
+saveData(data);
+updateSelectedPanel();
+renderMonth();
+}
+
+function addNews(){
+const raw = newsInput.value.trim();
+if(!raw) return;
+
+const items = splitToItems(raw);
+if(items.length === 0) return;
+
+const iso = toISODate(selectedDate);
+const rec = getDayRecord(iso);
+
+const ts = Date.now();
+for(const text of items){
+rec.news.push({ id: uid(), text, ts });
+}
+
+newsInput.value = "";
+saveData(data);
+updateSelectedPanel();
+renderMonth();
+}
+
+function clearDay(){
+const ok = confirm("Clear ALL homework and news for this day?");
+if(!ok) return;
+
+const iso = toISODate(selectedDate);
+data[iso] = { homework: [], news: [] };
+saveData(data);
+updateSelectedPanel();
+renderMonth();
+}
+
+// ===== Navigation buttons =====
+prevBtn.addEventListener("click", ()=>{
+viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth()-1, 1);
+renderMonth();
+});
+nextBtn.addEventListener("click", ()=>{
+viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth()+1, 1);
+renderMonth();
+});
+todayBtn.addEventListener("click", ()=>{
+const now = new Date();
+selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+viewMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+updateSelectedPanel();
+renderMonth();
+});
+
+// ===== Add handlers =====
+addHomeBtn.addEventListener("click", addHomework);
+addNewsBtn.addEventListener("click", addNews);
+
+// Enter-to-add (only when single-line input / user isn't trying to add newline)
+function bindEnterToAdd(textarea, addFn){
+textarea.addEventListener("keydown", (e)=>{
+if(e.key === "Enter" && !e.shiftKey){
+// If the textarea is multi-line, Enter normally adds newline.
+// We'll keep Shift+Enter for newline, plain Enter to add.
+e.preventDefault();
+addFn();
+}
+});
+}
+bindEnterToAdd(homeInput, addHomework);
+bindEnterToAdd(newsInput, addNews);
+
+clearDayBtn.addEventListener("click", clearDay);
+
+// ===== Export / Import =====
+exportBtn.addEventListener("click", ()=>{
+const payload = {
+version: 1,
+exportedAt: new Date().toISOString(),
+data
+};
+const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+const url = URL.createObjectURL(blob);
+
+const a = document.createElement("a");
+a.href = url;
+a.download = "daily-calendar-homework-news.json";
+document.body.appendChild(a);
+a.click();
+a.remove();
+
+URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener("click", ()=> importFile.click());
+
+importFile.addEventListener("change", async ()=>{
+const file = importFile.files && importFile.files[0];
+if(!file) return;
+
+try{
+const text = await file.text();
+const parsed = JSON.parse(text);
+
+if(!parsed || typeof parsed !== "object" || !parsed.data){
+alert("Invalid file format.");
+return;
+}
+// Merge strategy: overwrite days from imported data
+data = { ...data, ...parsed.data };
+saveData(data);
+updateSelectedPanel();
+renderMonth();
+alert("Import complete!");
+}catch(e){
+alert("Failed to import JSON.");
+}finally{
+importFile.value = "";
+}
+});
+
+// ===== Initial render =====
+// Make sure selection matches view month initially
+selectedDate = new Date();
+selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+viewMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+
+updateSelectedPanel();
+renderMonth();
 </script>
-
 </body>
 </html>
