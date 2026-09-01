@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Calendar & News Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; }
+    .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .admin-controls { background: #eef2f5; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+    .news-section { background: #fff8e1; padding: 15px; border-left: 5px solid #ffb300; margin-bottom: 20px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 10px; }
+    .day-box { border: 1fr solid #ccc; background: #fafafa; padding: 10px; min-height: 80px; border-radius: 4px; }
+    .day-header { font-weight: bold; margin-bottom: 5px; color: #333; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Class Announcements & Homework</h2>
+  
+  <div class="news-section">
+    <h3>Latest News</h3>
+    <p id="news-display">No new announcements today.</p>
+  </div>
+
+  <h3>Weekly Calendar</h3>
+  <div class="calendar-grid" id="calendar">
+    </div>
+
+  <hr style="margin: 30px 0;">
+
+  <div class="admin-controls">
+    <button onclick="unlockAdmin()">Admin Login</button>
+    
+    <div id="admin-panel" class="hidden" style="margin-top: 15px;">
+      <h4>Update Announcements</h4>
+      <input type="text" id="news-input" placeholder="Enter news..." style="width: 70%;">
+      <button onclick="updateNews()">Publish News</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const calendarEl = document.getElementById('calendar');
+
+  // Render basic calendar structure
+  days.forEach(day => {
+    const box = document.createElement('div');
+    box.className = 'day-box';
+    box.innerHTML = `<div class="day-header">${day}</div><div id="task-${day}">No tasks</div>`;
+    calendarEl.appendChild(box);
+  });
+
+  function unlockAdmin() {
+    const password = prompt("Enter Admin Password:");
+    if (password === "admin123") { // Replace with desired passcode logic
+      document.getElementById('admin-panel').classList.remove('hidden');
+      alert("Admin access granted.");
+    } else {
+      alert("Incorrect password.");
+    }
+  }
+
+  function updateNews() {
+    const text = document.getElementById('news-input').value;
+    if (text) {
+      document.getElementById('news-display').innerText = text;
+      alert("News updated on page!");
+    }
+  }
+</script>
+
+</body>
+</html>
