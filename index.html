@@ -228,7 +228,7 @@ padding:3px 8px;
 border-radius:999px;
 border:1px solid var(--border);
 color:var(--muted);
-background: rgba(255,255,255,.04);
+background: rgba(255,255,254,.04);
 }
 
 .date-box{
@@ -340,6 +340,11 @@ border:1px solid var(--border);
 background: rgba(255,255,255,.04);
 color: var(--muted);
 }
+
+/* Hide admin elements when in view-only mode */
+body:not(.is-admin) .admin-only {
+display: none !important;
+}
 </style>
 </head>
 <body>
@@ -347,8 +352,8 @@ color: var(--muted);
 <header>
 <h1>Daily Homework + News Calendar</h1>
 <div class="meta">
-Click a day → add items → they save locally
-<div style="margin-top:4px;">Tip: press <span class="kbd">Enter</span> to add (in the input)</div>
+<span id="roleLabel">View Mode</span>
+<div style="margin-top:4px;">Status: <span id="syncStatus" class="kbd">Syncing...</span></div>
 </div>
 </header>
 
@@ -358,9 +363,9 @@ Click a day → add items → they save locally
 <div class="hd">
 <div class="title">Calendar</div>
 <div class="controls">
-<button id="prevBtn" aria-label="Previous month">◀</button>
+<button id="prevBtn" aria-label="Previous month">&lt;</button>
 <button id="todayBtn" class="btn-accent" aria-label="Go to today">Today</button>
-<button id="nextBtn" aria-label="Next month">▶</button>
+<button id="nextBtn" aria-label="Next month">&gt;</button>
 </div>
 </div>
 
@@ -383,7 +388,7 @@ Click a day → add items → they save locally
 <div class="hd">
 <div class="title">For selected day</div>
 <div class="controls">
-<button id="clearDayBtn" class="btn-danger" title="Remove all homework & news for this day">
+<button id="clearDayBtn" class="btn-danger admin-only" title="Remove all homework & news for this day">
 Clear day
 </button>
 </div>
@@ -404,7 +409,7 @@ Homework
 <span class="badge" id="homeCountBadge">0 items</span>
 </h2>
 
-<div class="form-row">
+<div class="form-row admin-only">
 <textarea id="homeInput" placeholder="Add homework (e.g., Math worksheet #3)" maxlength="500"></textarea>
 <button id="addHomeBtn" class="btn-accent">Add</button>
 <div class="smallhint">Each line you enter becomes one homework item.</div>
@@ -420,7 +425,7 @@ News
 <span class="badge" id="newsCountBadge">0 items</span>
 </h2>
 
-<div class="form-row">
+<div class="form-row admin-only">
 <textarea id="newsInput" placeholder="Add news (e.g., Team meeting moved to 4pm)" maxlength="500"></textarea>
 <button id="addNewsBtn" class="btn-accent">Add</button>
 <div class="smallhint">Useful for class announcements or anything time-sensitive.</div>
@@ -432,11 +437,13 @@ News
 
 <div class="footer-actions">
 <div class="selected-sub">
-Storage: <span class="kbd">Local browser only</span>
+Storage: <span class="kbd">Shared Cloud (JSONBin)</span>
 </div>
+<div class="admin-only">
 <button id="exportBtn" title="Export your calendar data as a JSON file">Export JSON</button>
 <button id="importBtn" title="Import calendar data from a JSON file">Import JSON</button>
 <input id="importFile" type="file" accept="application/json" style="display:none" />
+</div>
 </div>
 </div>
 </aside>
@@ -444,35 +451,103 @@ Storage: <span class="kbd">Local browser only</span>
 </div>
 
 <script>
-// ===== Storage model =====
-// Data shape:
-// {
-// "YYYY-MM-DD": { homework: [{id, text, ts}], news: [{id, text, ts}] }
-// }
-const STORAGE_KEY = "daily_calendar_homework_news_v1";
+// ===== Check Admin Mode =====
+const urlParams = new URLSearchParams(window.location.search);
+const isAdmin = urlParams.get('admin') === 'true';
 
-function loadData(){
-try{
-const raw = localStorage.getItem(STORAGE_KEY);
-if(!raw) return {};
-const parsed = JSON.parse(raw);
-if(!parsed || typeof parsed !== "object") return {};
-return parsed;
+if (isAdmin) {
+document.body.classList.add('is-admin');
+document.getElementById('roleLabel').textContent = 'Admin Mode';
+}
+
+// ===== JSONBin Cloud Configuration =====
+const BIN_ID = "6a96ab73f5f4af5e295bf190";
+const READ_KEY = "$2a$10$EL0Df7k/13C5o23MbErOrO2KhSVAaPxGU0gvQURXBbkCM.hs.Bi5a";
+const MASTER_KEY = "$2a$10$2.7amrsHrEnf4SnxV0CFf.oy7WFxSU8wuLhFE7KvZwVA.8T01NQ5O"; 
+
+// ===== Optional Real-Time Webhook Alert =====
+// Replace with your Discord/Slack Webhook URL to get live push notifications
+const WEBHOOK_URL = "";
+
+let data = {};
+
+// ===== Logging Helper =====
+async function logUserAction(actionType, details = {}) {
+  const logData = {
+    timestamp: new Date().toISOString(),
+    action: actionType,
+    pageUrl: window.location.href, // Captures full URL + query parameters
+    isAdminMode: isAdmin,
+    userAgent: navigator.userAgent,
+    details: details
+  };
+
+  // Log to browser console
+  console.log("[AUDIT LOG]:", logData);
+
+  // Optional: Send to external Webhook
+  if (WEBHOOK_URL && WEBHOOK_URL.startsWith("http")) {
+    try {
+      await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: `🚨 **Calendar Action Logged**\n` +
+                   `**Action:** ${actionType}\n` +
+                   `**URL Used:** \`${logData.pageUrl}\`\n` +
+                   `**Role:** ${isAdmin ? "Admin" : "Standard User"}\n` +
+                   `**Details:** \`\`\`json\n${JSON.stringify(details, null, 2)}\n\`\`\``
+        })
+      });
+    } catch (e) {
+      console.error("Failed to send webhook log", e);
+    }
+  }
+}
+
+// ===== Cloud Sync Functions =====
+async function loadData(){
+const statusEl = document.getElementById("syncStatus");
+if(statusEl) statusEl.textContent = "Syncing...";
+try {
+const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+headers: { "X-Access-Key": READ_KEY }
+});
+const result = await res.json();
+data = result.record || {};
+if(statusEl) statusEl.textContent = "Live Connected";
 }catch(e){
-return {};
+console.error("Cloud load failed", e);
+if(statusEl) statusEl.textContent = "Offline Mode";
 }
+updateSelectedPanel();
+renderMonth();
 }
 
-function saveData(data){
-localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+async function saveData(){
+if (!isAdmin) return;
 
-let data = loadData();
+const statusEl = document.getElementById("syncStatus");
+if(statusEl) statusEl.textContent = "Saving...";
+try {
+await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+method: "PUT",
+headers: {
+"Content-Type": "application/json",
+"X-Master-Key": MASTER_KEY
+},
+body: JSON.stringify(data)
+});
+if(statusEl) statusEl.textContent = "Saved to Cloud";
+}catch(e){
+console.error("Cloud save failed", e);
+if(statusEl) statusEl.textContent = "Error Saving";
+}
+}
 
 // ===== Date helpers =====
 function pad2(n){ return String(n).padStart(2,"0"); }
 function toISODate(d){
-// local time (avoid TZ shift by using local date components)
 return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 }
 function sameDay(a, b){
@@ -523,8 +598,8 @@ const importBtn = document.getElementById("importBtn");
 const importFile = document.getElementById("importFile");
 
 // ===== State =====
-let viewMonth = new Date(); // which month is displayed
-let selectedDate = new Date(); // which day is active
+let viewMonth = new Date();
+let selectedDate = new Date();
 
 // ===== Rendering =====
 function getDayRecord(iso){
@@ -547,14 +622,13 @@ const em = endOfMonth(viewMonth);
 
 monthTitle.textContent = viewMonth.toLocaleDateString(undefined, { month:"long", year:"numeric" });
 
-// Range hint
-const gridStart = addDays(sm, -sm.getDay()); // Sunday on/before first
-const gridEnd = addDays(em, (6 - em.getDay())); // Saturday on/after last
+const gridStart = addDays(sm, -sm.getDay());
+const gridEnd = addDays(em, (6 - em.getDay()));
 rangeHint.textContent = `Showing ${gridStart.toLocaleDateString()} – ${gridEnd.toLocaleDateString()}`;
 
 daysGrid.innerHTML = "";
 
-const totalCells = 42; // 6 weeks
+const totalCells = 42;
 for(let i=0;i<totalCells;i++){
 const cellDate = addDays(gridStart, i);
 const iso = toISODate(cellDate);
@@ -579,8 +653,6 @@ num.textContent = cellDate.getDate();
 const pills = document.createElement("div");
 pills.className = "pills";
 
-// Show up to 2 pills (Homework / News). If more items exist,
-// we still show one pill; you can keep counts via badge if desired.
 if(homeCount > 0){
 const p = document.createElement("div");
 p.className = "pill home";
@@ -601,16 +673,6 @@ cell.addEventListener("click", () => {
 selectedDate = cellDate;
 updateSelectedPanel();
 renderMonth();
-});
-
-// Keyboard accessibility
-cell.addEventListener("keydown", (e)=>{
-if(e.key === "Enter" || e.key === " "){
-e.preventDefault();
-selectedDate = cellDate;
-updateSelectedPanel();
-renderMonth();
-}
 });
 
 daysGrid.appendChild(cell);
@@ -638,26 +700,31 @@ const tag = document.createElement("div");
 tag.className = "tag";
 tag.textContent = new Date(item.ts).toLocaleTimeString(undefined, { hour:"2-digit", minute:"2-digit" });
 
+right.appendChild(tag);
+
+// Only show delete button to Admin
+if (isAdmin) {
 const del = document.createElement("button");
 del.className = "btn-danger";
 del.textContent = "Delete";
 del.style.padding = "7px 9px";
-del.addEventListener("click", ()=>{
+del.addEventListener("click", async ()=>{
 const iso = toISODate(selectedDate);
 const rec = getDayRecord(iso);
 
 if(badgeSetter === "home"){
 rec.homework = rec.homework.filter(x => x.id !== item.id);
+await logUserAction("DELETE_SINGLE_HOMEWORK", { selectedDate: iso, deletedItem: item });
 }else{
 rec.news = rec.news.filter(x => x.id !== item.id);
+await logUserAction("DELETE_SINGLE_NEWS", { selectedDate: iso, deletedItem: item });
 }
-saveData(data);
 updateSelectedPanel();
 renderMonth();
+await saveData();
 });
-
-right.appendChild(tag);
 right.appendChild(del);
+}
 
 row.appendChild(text);
 row.appendChild(right);
@@ -676,7 +743,7 @@ selectedDateLabel.textContent = formatLong(selectedDate);
 selectedDateISO.textContent = `ISO: ${iso}`;
 
 const now = new Date();
-todayBadge.textContent = sameDay(selectedDate, now) ? "✅ Today" : "";
+todayBadge.textContent = sameDay(selectedDate, now) ? " Today" : "";
 
 // Homework
 homeCountBadge.textContent = `${rec.homework.length} item${rec.homework.length===1?"":"s"}`;
@@ -691,12 +758,10 @@ newsEmpty.style.display = hasNews ? "none" : "block";
 
 // ===== Add items =====
 function splitToItems(text){
-// Each line becomes an item; ignore empty lines
 const lines = text
 .split(/\r?\n/)
 .map(s => s.trim())
 .filter(Boolean);
-// If user typed with no newlines, it remains one item.
 return lines.length ? lines : [];
 }
 
@@ -704,7 +769,7 @@ function uid(){
 return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
 }
 
-function addHomework(){
+async function addHomework(){
 const raw = homeInput.value.trim();
 if(!raw) return;
 
@@ -719,13 +784,19 @@ for(const text of items){
 rec.homework.push({ id: uid(), text, ts });
 }
 
+// --- LOG ADD ACTION ---
+await logUserAction("ADD_HOMEWORK", {
+  selectedDate: iso,
+  messagesInputted: items
+});
+
 homeInput.value = "";
-saveData(data);
 updateSelectedPanel();
 renderMonth();
+await saveData();
 }
 
-function addNews(){
+async function addNews(){
 const raw = newsInput.value.trim();
 if(!raw) return;
 
@@ -740,21 +811,49 @@ for(const text of items){
 rec.news.push({ id: uid(), text, ts });
 }
 
+// --- LOG ADD ACTION ---
+await logUserAction("ADD_NEWS", {
+  selectedDate: iso,
+  messagesInputted: items
+});
+
 newsInput.value = "";
-saveData(data);
 updateSelectedPanel();
 renderMonth();
+await saveData();
 }
 
-function clearDay(){
-const ok = confirm("Clear ALL homework and news for this day?");
-if(!ok) return;
-
+async function clearDay(){
 const iso = toISODate(selectedDate);
+const itemsBeingCleared = {
+  homework: data[iso]?.homework || [],
+  news: data[iso]?.news || []
+};
+
+// Log clear attempt
+await logUserAction("CLEAR_DAY_ATTEMPT", {
+  selectedDate: iso,
+  itemsTargetedCount: itemsBeingCleared.homework.length + itemsBeingCleared.news.length
+});
+
+const ok = confirm("Clear ALL homework and news for this day?");
+if(!ok) {
+  // Log cancellation
+  await logUserAction("CLEAR_DAY_CANCELLED", { selectedDate: iso });
+  return;
+}
+
 data[iso] = { homework: [], news: [] };
-saveData(data);
+
+// Log successful wipe
+await logUserAction("CLEAR_DAY_SUCCESS", {
+  selectedDate: iso,
+  clearedItems: itemsBeingCleared
+});
+
 updateSelectedPanel();
 renderMonth();
+await saveData();
 }
 
 // ===== Navigation buttons =====
@@ -778,12 +877,9 @@ renderMonth();
 addHomeBtn.addEventListener("click", addHomework);
 addNewsBtn.addEventListener("click", addNews);
 
-// Enter-to-add (only when single-line input / user isn't trying to add newline)
 function bindEnterToAdd(textarea, addFn){
 textarea.addEventListener("keydown", (e)=>{
 if(e.key === "Enter" && !e.shiftKey){
-// If the textarea is multi-line, Enter normally adds newline.
-// We'll keep Shift+Enter for newline, plain Enter to add.
 e.preventDefault();
 addFn();
 }
@@ -796,6 +892,7 @@ clearDayBtn.addEventListener("click", clearDay);
 
 // ===== Export / Import =====
 exportBtn.addEventListener("click", ()=>{
+logUserAction("EXPORT_DATA_JSON");
 const payload = {
 version: 1,
 exportedAt: new Date().toISOString(),
@@ -828,11 +925,11 @@ if(!parsed || typeof parsed !== "object" || !parsed.data){
 alert("Invalid file format.");
 return;
 }
-// Merge strategy: overwrite days from imported data
 data = { ...data, ...parsed.data };
-saveData(data);
+await logUserAction("IMPORT_DATA_JSON", { fileName: file.name });
 updateSelectedPanel();
 renderMonth();
+await saveData();
 alert("Import complete!");
 }catch(e){
 alert("Failed to import JSON.");
@@ -841,14 +938,17 @@ importFile.value = "";
 }
 });
 
-// ===== Initial render =====
-// Make sure selection matches view month initially
+// Auto-refresh data every 10 seconds for live updates
+setInterval(() => {
+loadData();
+}, 10000);
+
+// ===== Initial render & load =====
 selectedDate = new Date();
 selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
 viewMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
 
-updateSelectedPanel();
-renderMonth();
+loadData();
 </script>
 </body>
 </html>
